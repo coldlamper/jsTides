@@ -207,7 +207,6 @@ class jsTides {
 			// Checking for $next_tide_found will allow and extra tide(the next day's tide) to be displayed
 			if (index > 3 && nextTideFound)
 			{
-				//tidePredictions = array_slice(tidePredictions, 0, $index);
 				return false;
 			}
 
