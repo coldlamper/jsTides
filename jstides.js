@@ -126,7 +126,7 @@ class jsTides {
     const yyyy = dateObj.getFullYear();
     
     const hours24 = dateObj.getHours();
-    const hours = (hours24 - 12) > 0 ? hours24 - 12 : hours24;
+    let hours = (hours24 - 12) > 0 ? hours24 - 12 : hours24;
     if (hours == 0) hours = 12;
     const g = hours;
     const i = String(dateObj.getMinutes()).padStart(2, '0');
