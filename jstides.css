@@ -1,0 +1,22 @@
+.jsTides .row {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	width: 100%;
+}
+
+.jsTides .row.next-tide {
+	font-weight: bold;
+}
+
+.jsTides .column {
+	align-items: center;
+	display: flex;
+	flex-direction: column;
+	flex-basis: 100%;
+	flex: 1;
+}
+
+.jsTides .header {
+	margin: 20px;
+}
