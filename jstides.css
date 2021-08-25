@@ -1,3 +1,8 @@
+.jsTides {
+	max-width:800px;
+	margin: auto;
+}
+
 .jsTides .row {
 	display: flex;
 	flex-direction: row;
