@@ -25,33 +25,57 @@ class jsTides {
 
   }
 
-  constructor(selector) {
+  constructor(selector, stationId = '') {
     
-    this.init(selector);
-  
+    this.stationId = stationId;
+    this.showMap = stationId ? false : true;
+    this.selector = selector
+
+    if (this.showMap) {
+      this.loadAsset('https://unpkg.com/leaflet@1.7.1/dist/leaflet.css')
+        .catch(err => {
+          console.log('Error loading Leaflet CSS', err);
+        }); 
+        this.loadAsset('https://unpkg.com/leaflet@1.7.1/dist/leaflet.js')
+        .then(() => { this.initRender() } )
+        .catch(err => {
+          console.log('Error loading Leaflet JS', err);
+        }); 
+    } else {
+      this.initRender()
+    }
+    
   }
 
   mainTemplate(data) { 
     
+    let html = `
+      <div class="jsTides">
+          
+        <div class="row">
+          <div class="column">
+            <div class="row header"></div>
+            <div class="row tide-list"></div>
+          </div>
+      `;
+    
+    if (this.showMap) {
+      html += `
+          <div class="column map_container">
+            <div id="map" style="width:400px;height:300px"></div>    
+          </div>
+      `;
+    }
+
+    html += `
+        </div>
+
+      </div>
+    `; 
+
     return {
       selector: '#main',
-      html:`
-      <div class="jsTides">
-            
-          <div class="row">
-            <div class="column">
-              <div class="row header"></div>
-              <div class="row tide-list"></div>
-            </div>
-
-            <div class="column map_container">
-              <div id="map" style="width:400px;height:300px"></div>    
-            </div>
-
-          </div>
-
-        </div>
-      `
+      html: html
     };
 
   }
@@ -245,16 +269,16 @@ class jsTides {
         height: prediction['v'],
         tideType: prediction['type'] == 'L' ? 'Low' : 'High'
       });
-      
+
       return true;
       
     })
      
   }
 
-  createMap(lat, long, zoom) {
+  createMap(lat, lng, zoom) {
     
-    this.map = L.map('map').setView([30.505, -95.09], 3);
+    this.map = L.map('map').setView([lat, lng], 3);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18
@@ -297,23 +321,61 @@ class jsTides {
     
   }
 
-  init(selector) {
+  loadAsset(src) {
+    return new Promise((resolve, reject) => {
+      
+      // get file extention to determine type
+      const ext  = src.split('.').pop();
+      const elementTypes = {
+        js: 'script',
+        css: 'link'
+      }
+      let type = elementTypes[ext];
+      
+      let asset = document.createElement(type);
+      
+      // Add type specific attributes
+      if (type === 'script') {
+        asset.src = src;
+      } else if (type === 'link') {
+        asset.rel = 'stylesheet';
+        asset.href = src;
+      }
+
+      // Add common attributes
+      asset.async = true;
+      asset.onload = resolve;
+      asset.onerror = reject;
+      
+      document.head.appendChild(asset);
     
-    this.renderTemplate('main', selector);
+    });
+  }
+
+   initRender() { 
+    this.renderTemplate('main', this.selector);
     this.render();
     this.getStations()
       .then(tides => {
-        tides.createMap(30.505, -95.09, 3);
-        for ( let i = 0; i < tides.stations.length; i++ ) {
-          let container = '<div>';
-          container += 'Station ID - ' + tides.stations[i].id + '<br>' + tides.stations[i].name + '</div>';
-          tides.createCircleMarker(tides.stations[i].lat, tides.stations[i].lng, container, () => {
-            this.state.title = tides.stations[i].name + ' (' + tides.stations[i].id + ')' ; 
-            tides.processTides(tides.stations[i].id)
-              .then(tides => {
-                this.render()
-              })
-          })
+        if (this.showMap) {
+          tides.createMap(30.505, -95.09, 3);
+          for ( let i = 0; i < tides.stations.length; i++ ) {
+            let container = '<div>';
+            container += 'Station ID - ' + tides.stations[i].id + '<br>' + tides.stations[i].name + '</div>';
+            tides.createCircleMarker(tides.stations[i].lat, tides.stations[i].lng, container, () => {
+              this.state.title = tides.stations[i].name + ' (' + tides.stations[i].id + ')' ; 
+              tides.processTides(tides.stations[i].id)
+                .then(tides => {
+                  this.render()
+                })
+            })
+          }
+        }
+        else {
+          tides.processTides(tides.stationId)
+            .then(tides => {
+              this.render()
+            })
         }
       })
     };
