@@ -204,7 +204,7 @@ class jsTides {
     this.stationTides.predictions.every((prediction, index) => {
                  
       // If we have all the tides for the day truncate the array
-			// Checking for $next_tide_found will allow and extra tide(the next day's tide) to be displayed
+			// Checking for nextTideFound will allow and extra tide(the next day's tide) to be displayed
 			if (index > 3 && nextTideFound)
 			{
 				return false;
