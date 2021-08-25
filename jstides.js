@@ -14,7 +14,6 @@ class jsTides {
   station = {};
   stationTides = {};
   noaaCoOpsMetadataApiUrl = 'https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations';
-
   noaaCoOpsDataApiUrl = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter';
 
   templateSelectors = {};
@@ -23,13 +22,17 @@ class jsTides {
     title: 'Select a station on the map',
     date: '',
     tideRows: [],
+
   }
 
   constructor(selector) {
+    
     this.init(selector);
+  
   }
 
   mainTemplate(data) { 
+    
     return {
       selector: '#main',
       html:`
@@ -50,9 +53,11 @@ class jsTides {
         </div>
       `
     };
+
   }
 
   headerTemplate(data) {
+    
     return {
       selector: '.jsTides .header',
       html: `
@@ -66,6 +71,7 @@ class jsTides {
       </div>
       `
     };
+
   }
 
   tideRowsTemplate(data) { 
@@ -86,15 +92,19 @@ class jsTides {
       selector: '.jsTides .tide-list',
       html: html
     }
+
   }
   
   makeRequest(url) {
+    
     return fetch(url)
       .then(data => { return data.json() })
       .catch(err => { console.log(err) });
+  
   }
 
   metadataStationRequest(stationId = null, extension = 'json', resource = '', type = 'tidepredictions') {
+    
     let url = this.noaaCoOpsMetadataApiUrl;
     if (stationId) {
       url += '/' + stationId;
@@ -109,6 +119,7 @@ class jsTides {
     }
 
     return this.makeRequest(url);
+
   }
 
   dataRequest(requestParams) {
@@ -118,9 +129,11 @@ class jsTides {
     url += '?' + queryString;
 
     return this.makeRequest(url);
+
   }
 
   getDateFormatted(dateObj, format = 'yyyymmdd') {
+   
     const dd = String(dateObj.getDate()).padStart(2, '0');
     const mm = String(dateObj.getMonth() + 1).padStart(2, '0'); //January is 0!
     const yyyy = dateObj.getFullYear();
@@ -140,17 +153,21 @@ class jsTides {
     formatted = formatted.replace('i', i);
     formatted = formatted.replace('A', A);
     return formatted;
+
   }
 
   getStations() {
+    
     return this.metadataStationRequest()
       .then(resp => {
         this.stations = resp.stations;
         return this;
       });
+
   }
 
   processTides(stationId) {
+    
     let _self = this;
     return this.metadataStationRequest(stationId, 'json', null, null)
       .then(resp => {
@@ -177,7 +194,6 @@ class jsTides {
           application: 'jsTides'
         };
 
-
         return this.dataRequest(params)
           .then(res => { 
              console.log(res); 
@@ -185,8 +201,6 @@ class jsTides {
             this.formatJsonTidePreditions();
             return _self; 
           })
-          
-
       })
 
   }
@@ -231,6 +245,7 @@ class jsTides {
         height: prediction['v'],
         tideType: prediction['type'] == 'L' ? 'Low' : 'High'
       });
+      
       return true;
       
     })
@@ -283,25 +298,26 @@ class jsTides {
   }
 
   init(selector) {
+    
     this.renderTemplate('main', selector);
     this.render();
     this.getStations()
-        .then(tides => {
-            tides.createMap(30.505, -95.09, 3);
-            for ( let i = 0; i < tides.stations.length; i++ ) {
-                let container = '<div>';
-                container += 'Station ID - ' + tides.stations[i].id + '<br>' + tides.stations[i].name + '</div>';
-                tides.createCircleMarker(tides.stations[i].lat, tides.stations[i].lng, container, () => {
-                    this.state.title = tides.stations[i].name + ' (' + tides.stations[i].id + ')' ; 
-                    tides.processTides(tides.stations[i].id)
-                        .then(tides => {
-                          //tides.stations = {};
-                          this.render()
-                        })
-                })
-            }
+      .then(tides => {
+        tides.createMap(30.505, -95.09, 3);
+        for ( let i = 0; i < tides.stations.length; i++ ) {
+          let container = '<div>';
+          container += 'Station ID - ' + tides.stations[i].id + '<br>' + tides.stations[i].name + '</div>';
+          tides.createCircleMarker(tides.stations[i].lat, tides.stations[i].lng, container, () => {
+            this.state.title = tides.stations[i].name + ' (' + tides.stations[i].id + ')' ; 
+            tides.processTides(tides.stations[i].id)
+              .then(tides => {
+                this.render()
+              })
           })
+        }
+      })
     };
+
  }
 
 
