@@ -26,7 +26,7 @@ class jsTides {
   }
 
   constructor(selector, stationId = '') {
-    
+
     this.stationId = stationId;
     this.showMap = stationId ? false : true;
     this.selector = selector
@@ -156,30 +156,6 @@ class jsTides {
 
   }
 
-  getDateFormatted(dateObj, format = 'yyyymmdd') {
-   
-    const dd = String(dateObj.getDate()).padStart(2, '0');
-    const mm = String(dateObj.getMonth() + 1).padStart(2, '0'); //January is 0!
-    const yyyy = dateObj.getFullYear();
-    
-    const hours24 = dateObj.getHours();
-    let hours = (hours24 - 12) > 0 ? hours24 - 12 : hours24;
-    if (hours == 0) hours = 12;
-    const g = hours;
-    const i = String(dateObj.getMinutes()).padStart(2, '0');
-    const A = hours24 > 11 ? 'PM' : 'AM';
-    
-    let formatted = format;
-    formatted = formatted.replace('yyyy', yyyy);
-    formatted = formatted.replace('mm', mm);
-    formatted = formatted.replace('dd', dd);
-    formatted = formatted.replace('g', g);
-    formatted = formatted.replace('i', i);
-    formatted = formatted.replace('A', A);
-    return formatted;
-
-  }
-
   getStations() {
     
     return this.metadataStationRequest()
@@ -197,13 +173,12 @@ class jsTides {
       .then(resp => {
         _self.station = resp.stations[0];
 
-        console.log(_self.station);
         const today = new Date();
         const tomorrow = new Date(today)
         tomorrow.setDate(tomorrow.getDate() + 1)
 
-        const beginDate = _self.getDateFormatted(today);
-        const endDate = _self.getDateFormatted(tomorrow);
+        const beginDate = today.format('Ymd');
+        const endDate = tomorrow.format('Ymd');
 
         const params = {
           product: 'predictions',
@@ -231,11 +206,14 @@ class jsTides {
 
   formatJsonTidePreditions() {
 
-    //TODO Some stations don't have a timezone
+    //TODO Some stations don't have a timezone, need to somehow use offsets
     let stationTimezone = this.timezones[this.station.timezone];
-    this.state.date = new Date().toLocaleString('en-US', {timeZone: stationTimezone});
-    let stationDate = new Date(this.state.date);
-    let stationTimestamp = stationDate.getTime() / 1000; 
+    let stationDate = new Date((new Date().toLocaleString('en-US', {timeZone: stationTimezone})));
+    
+    this.state.date = stationDate.format('M j, Y g:i A')
+    //let stationDate = new Date(this.state.date);
+    
+    let stationTimestamp = stationDate.getTime(); 
     let nextTideFound = false;
     
     this.state.tideRows = [];
@@ -249,7 +227,7 @@ class jsTides {
 			}
 
 			let predictionDt = new Date(new Date(prediction['t']).toLocaleString('en-US', {timeZone: stationTimezone}));
-			let tideTimestamp = predictionDt.getTime() / 1000;
+			let tideTimestamp = predictionDt.getTime();
 
 			let nextTide = false;
 			if ( stationTimestamp < tideTimestamp && !nextTideFound )
@@ -261,7 +239,7 @@ class jsTides {
       this.state.tideRows.push()
 
 			// Format the time output
-			let localTime = this.getDateFormatted(predictionDt, 'g:i A');
+			let localTime = predictionDt.format('g:i A');
 
 			this.state.tideRows.push({
         localTime: localTime,
@@ -295,7 +273,7 @@ class jsTides {
       radius: 4,
     }).addTo(this.map)
       .bindTooltip(toolTip)
-      .on('click', () => onClick());
+      .on('click', (e) => onClick(e));
 
   }
 
@@ -362,7 +340,8 @@ class jsTides {
           for ( let i = 0; i < tides.stations.length; i++ ) {
             let container = '<div>';
             container += 'Station ID - ' + tides.stations[i].id + '<br>' + tides.stations[i].name + '</div>';
-            tides.createCircleMarker(tides.stations[i].lat, tides.stations[i].lng, container, () => {
+            tides.createCircleMarker(tides.stations[i].lat, tides.stations[i].lng, container, (e) => {
+              tides.map.setView(e.target.getLatLng(), 12);
               this.state.title = tides.stations[i].name + ' (' + tides.stations[i].id + ')' ; 
               tides.processTides(tides.stations[i].id)
                 .then(tides => {
@@ -381,8 +360,3 @@ class jsTides {
     };
 
  }
-
-
-
-
-
