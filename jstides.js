@@ -13,6 +13,7 @@ class jsTides {
   stations = {};
   station = {};
   stationTides = {};
+
   noaaCoOpsMetadataApiUrl = 'https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations';
   noaaCoOpsDataApiUrl = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter';
 
@@ -22,7 +23,7 @@ class jsTides {
     title: 'Select a station on the map',
     date: '',
     tideRows: [],
-
+    nextTide: {}
   }
 
   constructor(selector, stationId = '') {
@@ -53,9 +54,16 @@ class jsTides {
       <div class="jsTides">
           
         <div class="row">
+          <div class="column previous-day">
+            <div class="row"><</div>
+          </div>
           <div class="column">
             <div class="row header"></div>
             <div class="row tide-list"></div>
+            <div class="row tide-graph"></div>
+          </div>
+          <div class="column next-day">
+            <div class="row">></div>
           </div>
       `;
     
@@ -98,10 +106,10 @@ class jsTides {
 
   }
 
-  tideRowsTemplate(data) { 
+  tideRowsTemplate(rows) { 
     
     let html = ''
-    data.tideRows.forEach(row => {
+    rows.forEach(row => {
       let nextTideClass = row.nextTide ? ' next-tide' : '' 
       html += `
       <div class="row${nextTideClass}">
@@ -166,7 +174,7 @@ class jsTides {
 
   }
 
-  processTides(stationId) {
+  processTides(stationId, dateObj = null) {
     
     let _self = this;
     return this.metadataStationRequest(stationId, 'json', null, null)
@@ -174,10 +182,14 @@ class jsTides {
         _self.station = resp.stations[0];
 
         const today = new Date();
-        const tomorrow = new Date(today)
+       
+        const yesterday =  new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1)
+        
+        const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1)
 
-        const beginDate = today.format('Ymd');
+        const beginDate = yesterday.format('Ymd');
         const endDate = tomorrow.format('Ymd');
 
         const params = {
@@ -210,48 +222,212 @@ class jsTides {
     let stationTimezone = this.timezones[this.station.timezone];
     let stationDate = new Date((new Date().toLocaleString('en-US', {timeZone: stationTimezone})));
     
+    let localTimeZoneOffset = new Date().getTimezoneOffset(); // Get local timezone offset in minutes reguardless of timezone set to date object
+
     this.state.date = stationDate.format('M j, Y g:i A')
-    //let stationDate = new Date(this.state.date);
     
     let stationTimestamp = stationDate.getTime(); 
     let nextTideFound = false;
     
     this.state.tideRows = [];
     this.stationTides.predictions.every((prediction, index) => {
-                 
-      // If we have all the tides for the day truncate the array
-			// Checking for nextTideFound will allow and extra tide(the next day's tide) to be displayed
-			if (index > 3 && nextTideFound)
+      
+      let lastTideRowWIsNextTide = false;
+      if(this.state.tideRows.length > 1) {
+        lastTideRowWIsNextTide = this.state.tideRows[this.state.tideRows.length - 1].nextTide;
+      }  
+      
+      let endView = false;
+     
+			if (index > 8 && nextTideFound && lastTideRowWIsNextTide !== true)
 			{
-				return false;
-			}
+         endView = true;
+      }
+      let startView = false;
+      if (index == 3) {
+        startView = true;
+      }
 
-			let predictionDt = new Date(new Date(prediction['t']).toLocaleString('en-US', {timeZone: stationTimezone}));
+    	let predictionDt = new Date(new Date(prediction['t']).toLocaleString('en-US', {timeZone: stationTimezone}));
 			let tideTimestamp = predictionDt.getTime();
 
 			let nextTide = false;
 			if ( stationTimestamp < tideTimestamp && !nextTideFound )
 			{
 				nextTide = true;
-				nextTideFound = true;
-			}
-
-      this.state.tideRows.push()
+       	nextTideFound = true;
+      }
 
 			// Format the time output
 			let localTime = predictionDt.format('g:i A');
 
 			this.state.tideRows.push({
+        timestamp: tideTimestamp - (localTimeZoneOffset * 60 * 1000),
         localTime: localTime,
         nextTide: nextTide,
         height: prediction['v'],
-        tideType: prediction['type'] == 'L' ? 'Low' : 'High'
+        tideType: prediction['type'] == 'L' ? 'Low' : 'High',
+        startView: startView,
+        endView: endView
       });
+
+      if (nextTide) {
+        this.state.nextTide = this.state.tideRows.slice(-1)[0];
+      }
 
       return true;
       
     })
      
+  }
+
+  createGraph() {
+    
+    if (this.hasOwnProperty('chart')) {
+      this.chart.destroy();
+    }
+    
+    let data = [];
+    let categories = [];
+
+    let i = 0;
+    let useRow = false;
+    this.state.tideRows.forEach( row => {
+      if (row.startView === true) {
+        useRow = true;
+      }
+      
+      if (row.endView === true) {
+        useRow = false;
+      } 
+
+      if (useRow) {
+        data.push(row.height);
+        categories.push(row.timestamp);
+      }
+      
+    });
+    
+    let options = {
+      chart: {
+        type: "area",
+        height: 200,
+        toolbar: {
+          show: false,
+        },
+        parentHeightOffset:0,
+        dropShadow: {
+          enabled: false,
+          enabledSeries: [0],
+          top: -2,
+          left: 2,
+          blur: 5,
+          opacity: 0.06
+        },
+       },
+      stroke: {
+        curve: "smooth",
+        width: 2
+      },
+      dataLabels: {
+        enabled: false,
+        formatter: function(value, { seriesIndex, dataPointIndex, w }) {
+          return w.config.series[seriesIndex].name + ":  " + value
+        }
+      },
+      series: [{
+        name: 'Height',
+        data: data
+      }],
+      markers: {
+        size: 0,
+        strokeColor: "#fff",
+        strokeWidth: 3,
+        strokeOpacity: 1,
+        fillOpacity: 1,
+        hover: {
+          size: 6
+        }
+      },
+      xaxis: {
+        categories: categories,
+        type: 'category',
+        axisBorder: {
+          show: false
+        },
+        axisTicks: {
+          show: false
+        },
+        tooltip: {
+          enabled: false
+        },
+        labels: {
+          offsetX: 0,
+          offsetY: -5,
+          formatter: function (value) {
+            let date = new Date(value);
+            let utcTimeStamp = (date.getTime() + date.getTimezoneOffset()*60*1000)
+            return new Date(utcTimeStamp).format('g:i A');
+          }
+        }
+      },
+      yaxis: {
+        labels: {
+          offsetX: -12,
+          offsetY: -5,
+          formatter: function (value) {
+            return value.toFixed(1) + ' ft';
+          }
+        },
+        tooltip: {
+          enabled: true
+        }
+      },
+      grid: {
+        padding: {
+          left: -5,
+          right: 5
+        }
+      },
+      tooltip: {
+        x: {
+          formatter: function (value) {
+            let date = new Date(categories[value - 1]);
+            let utcTimeStamp = (date.getTime() + date.getTimezoneOffset()*60*1000)
+            return new Date(utcTimeStamp).format('M d g:i A');
+          }
+        }
+      },
+      legend: {
+        position: 'top',
+        horizontalAlign: 'left'
+      },
+      fill: {
+        type: "gradient",
+        opacityFrom: 1,
+        opacityTo: 0.2,
+      },
+      annotations: {
+        xaxis: [
+          {
+            x: this.state.nextTide.localTime,
+            borderColor: '#775DD0',
+            label: {
+              style: {
+                color: '#00f',
+              },
+              text: 'Next Tide'
+            }
+          }
+        ]
+      }
+
+    };
+
+    this.chart = new ApexCharts(document.querySelector(".tide-graph"), options);
+
+    this.chart.render();
+       
   }
 
   createMap(lat, lng, zoom) {
@@ -280,13 +456,46 @@ class jsTides {
   render() {
     
     this.renderTemplate('header');
-    this.renderTemplate('tideRows');
-       
+
+    if (this.state.tideRows.length) {
+      
+      let rows = [];
+      
+      let useRow = false;
+      [...this.state.tideRows].forEach(row => {
+      
+        if (row.startView === true) {
+          useRow = true;
+        }
+          
+        if (row.endView === true) {
+          useRow = false;
+        } 
+    
+        if (useRow) {
+          rows.push(row);
+        }
+
+      });
+      
+      rows.pop();
+      rows.shift();
+
+      this.renderTemplate('tideRows', false, rows);
+    
+      this.createGraph();
+
+     }
+           
   }
   
-  renderTemplate(template, selector) {
+  renderTemplate(template, selector, data = null) {
     
-    let htmlObj = this[template + 'Template'](this.state)
+    if (!data) {
+      data = this.state;
+    }
+    
+    let htmlObj = this[template + 'Template'](data)
     
     if (selector) {
       htmlObj.selector = selector; 

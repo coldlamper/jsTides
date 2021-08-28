@@ -2,6 +2,7 @@
 	max-width:800px;
 	margin: auto;
 	font-family: BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	font-size:14px;
 }
 
 .jsTides .row {
@@ -15,14 +16,21 @@
 	font-weight: bold;
 }
 
+.jsTides .column.next-day, .jsTides .column.previous-day {
+	max-width: 10px;
+	justify-content: center;
+	display: none;
+}
+
 .jsTides .column {
 	align-items: center;
 	display: flex;
 	flex-direction: column;
 	flex-basis: 100%;
-	flex: 1;
+	flex: 1;	justify-content: center;
 }
 
 .jsTides .header {
-	margin: 20px;
+	margin: 4px;
+	margin-top:20px;
 }
